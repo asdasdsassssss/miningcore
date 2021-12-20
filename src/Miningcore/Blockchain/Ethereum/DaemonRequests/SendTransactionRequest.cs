@@ -2,7 +2,7 @@ using Miningcore.Serialization;
 using Newtonsoft.Json;
 
 namespace Miningcore.Blockchain.Ethereum.DaemonRequests;
-
+{
 public class SendTransactionRequest
 {
     /// <summary>
@@ -23,7 +23,7 @@ public class SendTransactionRequest
     public ulong? Gas { get; set; }
 
     /// <summary>
-    /// (Optional) Integer of the gas price used for each paid gas
+    /// Legacy transactions and EIP-2930 access list transaction include this parameter.
     /// </summary>
     [JsonConverter(typeof(HexToIntegralTypeJsonConverter<ulong>))]
     [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
@@ -52,4 +52,6 @@ public class SendTransactionRequest
     /// </summary>
     [JsonConverter(typeof(HexToIntegralTypeJsonConverter<ulong>))]
     public ulong MaxFeePerGas { get; set; }
+	
+}
 }
