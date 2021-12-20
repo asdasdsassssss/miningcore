@@ -1,7 +1,7 @@
 using Miningcore.Configuration;
 
 namespace Miningcore.Blockchain.Ethereum.Configuration;
-
+{
 public class EthereumPoolConfigExtra
 {
     /// <summary>
@@ -23,4 +23,5 @@ public class EthereumPoolConfigExtra
     /// getWork stream published via ZMQ
     /// </summary>
     public ZmqPubSubEndpointConfig BtStream { get; set; }
+}
 }
