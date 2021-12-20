@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Autofac;
 using AutoMapper;
 using Miningcore.Configuration;
+using Miningcore.Extensions;
 using Miningcore.JsonRpc;
 using Miningcore.Messaging;
 using Miningcore.Mining;
@@ -29,11 +30,12 @@ namespace Miningcore.Blockchain.Ethereum
             JsonSerializerSettings serializerSettings,
             IConnectionFactory cf,
             IStatsRepository statsRepo,
+			IShareRepository shareRepo,
             IMapper mapper,
             IMasterClock clock,
             IMessageBus messageBus,
             NicehashService nicehashService) :
-            base(ctx, serializerSettings, cf, statsRepo, mapper, clock, messageBus, nicehashService)
+            base(ctx, serializerSettings, cf, statsRepo, shareRepo, mapper, clock, messageBus, nicehashService)
         {
         }
 
@@ -43,6 +45,7 @@ namespace Miningcore.Blockchain.Ethereum
 
         private async Task OnSubscribeAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
         {
+			
             var request = tsRequest.Value;
             var context = connection.ContextAs<EthereumWorkerContext>();
 
@@ -86,14 +89,19 @@ namespace Miningcore.Blockchain.Ethereum
                 throw new StratumException(StratumError.MinusOne, "missing request id");
 
             var requestParams = request.ParamsAs<string[]>();
-            var workerValue = requestParams?.Length > 0 ? requestParams[0] : "0";
+            var workerValue = requestParams?.Length > 0 ? requestParams[0] : null;
             var password = requestParams?.Length > 1 ? requestParams[1] : null;
             var passParts = password?.Split(PasswordControlVarsSeparator);
 
+            var schemeName = poolConfig.Ports[connection.LocalEndpoint.Port].Scheme;
+			
             // extract worker/miner
-            var workerParts = workerValue?.Split('.');
-            var minerName = workerParts?.Length > 0 ? workerParts[0].Trim() : null;
-            var workerName = workerParts?.Length > 1 ? workerParts[1].Trim() : "0";
+            var split = workerValue?.Split('.');
+            var minerName = split[0].Trim();
+            var workerName = split?.Length > 1 ? split[1].Trim() : "0";
+
+            if(!EthereumConstants.WorkerPattern.IsMatch(workerName))
+                workerName = "0";
 
             // assumes that workerName is an address
             context.IsAuthorized = EthereumJobManager.ValidateAddress(minerName);
@@ -104,7 +112,9 @@ namespace Miningcore.Blockchain.Ethereum
             if(context.IsAuthorized)
             {
                 context.Miner = minerName.ToLower();
-                context.Worker = workerName;
+                context.Worker = $"{schemeName.ToLower()}:{workerName}";
+                context.Scheme = schemeName.ToLower();
+                context.IsNiceHashClient = true;
 
                 // extract control vars from password
                 var staticDiff = GetStaticDiffFromPassparts(passParts);
@@ -138,12 +148,12 @@ namespace Miningcore.Blockchain.Ethereum
 
                 await EnsureInitialWorkSent(connection);
 
-                logger.Info(() => $"[{connection.ConnectionId}] Authorized worker {workerValue}");
+                logger.Info(() => $"[{connection.ConnectionId}] Authorized worker: EthereumStratum/1.0.0 {schemeName}:{minerName}.{workerName}");
             }
 
             else
             {
-                logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {minerName} for {loginFailureBanTimeout.TotalSeconds} sec");
+                logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker: EthereumStratum/1.0.0 {minerName} for {loginFailureBanTimeout.TotalSeconds} sec");
 
                 banManager.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
 
@@ -158,7 +168,7 @@ namespace Miningcore.Blockchain.Ethereum
 
             lock(context)
             {
-                if(context.IsSubscribed && context.IsAuthorized && !context.IsInitialWorkSent)
+                if(context.IsSubscribed && context.IsAuthorized && !context.IsInitialWorkSent && context.IsNiceHashClient))
                 {
                     context.IsInitialWorkSent = true;
                     sendInitialWork = true;
@@ -176,7 +186,6 @@ namespace Miningcore.Blockchain.Ethereum
 		#endregion
 		
 		#region Stratum-Proxy
-		
 		private async Task OnSubmitLoginAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
         {
             var request = tsRequest.Value;
@@ -190,6 +199,8 @@ namespace Miningcore.Blockchain.Ethereum
             var password = requestParams?.Length > 1 ? requestParams[1] : null;
             var passParts = password?.Split(PasswordControlVarsSeparator);
 
+            var schemeName = poolConfig.Ports[connection.LocalEndpoint.Port].Scheme;
+			
             // extract worker/miner
             var split = workerValue?.Split('.');
             var minerName = split[0].Trim();
@@ -207,8 +218,9 @@ namespace Miningcore.Blockchain.Ethereum
             if(context.IsAuthorized)
             {
                 context.Miner = minerName.ToLower();
-                context.Worker = workerName;
-
+                context.Worker = $"{schemeName.ToLower()}:{workerName}";
+                context.Scheme = schemeName.ToLower();
+				
                 context.IsNiceHashClient = false;
                 context.IsSubscribed = true;
 
@@ -226,7 +238,9 @@ namespace Miningcore.Blockchain.Ethereum
                     logger.Info(() => $"[{connection.ConnectionId}] Setting static difficulty of {staticDiff.Value}");
                 }
 
-                logger.Info(() => $"[{connection.ConnectionId}] Authorized worker: Stratum-Proxy:{minerName}.{workerName}");
+                // await EnsureInitialWorkSent(connection);
+				
+                logger.Info(() => $"[{connection.ConnectionId}] Authorized worker: Stratum-Proxy{schemeName}:{minerName}.{workerName}");
             }
 
             else
@@ -314,12 +328,30 @@ namespace Miningcore.Blockchain.Ethereum
 
             catch(StratumException ex)
             {
-                // telemetry
+                
+				var status = "invalid";
+
+                if((int) ex.Code == 21)
+                    status = "stale";
+
+                var shareStatus = new Persistence.Model.ShareStatus
+                {
+                    PoolId = poolConfig.Id,
+                    Miner = context.Miner,
+                    Worker = context.Worker,
+                    Difficulty = context.Difficulty,
+                    Status = status,
+                    Created = clock.Now,
+                };
+
+                await AddErrorShares(shareStatus);
+				
+				// telemetry
                 PublishTelemetry(TelemetryCategory.Share, clock.Now - tsRequest.Timestamp.UtcDateTime, false);
 
                 // update client stats
                 context.Stats.InvalidShares++;
-                logger.Info(() => $"[{connection.ConnectionId}] Share rejected: {ex.Message} [{context.UserAgent}]");
+                logger.Info(() => $"[{connection.ConnectionId}] Share invalid: {ex.Message} [{context.UserAgent}]");
 
                 // banning
                 ConsiderBan(connection, context, poolConfig.Banning);
@@ -335,10 +367,15 @@ namespace Miningcore.Blockchain.Ethereum
         private static async Task OnSubmitHashrateAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
         {
             var request = tsRequest.Value;
+			var context = connection.ContextAs<EthereumWorkerContext>();
 
             if(request.Id == null)
                 throw new StratumException(StratumError.Other, "missing request id");
-
+            
+			// check request
+            var requestParams = request.ParamsAs<string[]>();
+            context.ReportHashrate = int.Parse(requestParams[0].StripHexPrefix(), System.Globalization.NumberStyles.HexNumber);
+			
             await connection.RespondAsync(true, request.Id);
         }
 
@@ -520,7 +557,8 @@ namespace Miningcore.Blockchain.Ethereum
             var header = "0x" + newJobParams[2];
             var seed = "0x" + newJobParams[1];
             var target = EthereumUtils.GetTargetHex(difficulty);
-
+            //var target = $"0x{EthereumUtils.GetDiffToTarget(difficulty)}";
+			
             var data = new object[]
             {
                 header,
