@@ -250,14 +250,7 @@ namespace Miningcore.Blockchain.Ethereum
                     if(errors.Any())
                         logger.Warn(() => $"Error(s) refreshing network stats: {string.Join(", ", errors.Select(y => y.Error.Message))})");
                 }
-				
-                var blockTemplate = await GetBlockTemplateAsync(ct);
 
-                if(blockTemplate != null)
-                {
-                    await ethash.GetDagAsync(blockTemplate.Height, logger, ct);
-                    logger.Info(() => $"Check Pre-generating DAG");
-                }
                 // extract results
                 var peerCount = responses[0].Response.ToObject<string>().IntegralFromHex<int>();
                 var latestBlockInfo = responses[1].Response.ToObject<Block>();
