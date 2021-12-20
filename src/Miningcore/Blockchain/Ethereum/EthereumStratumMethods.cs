@@ -36,8 +36,10 @@ namespace Miningcore.Blockchain.Ethereum
         /// Used to subscribe to work from a server, required before all other communication.
         /// </summary>
         public const string ExtraNonceSubscribe = "mining.extranonce.subscribe";
-		
 
+        /// <summary>
+        /// Is a nonsense method.
+        /// </summary>
         public const string SubmitLogin = "eth_submitLogin";
         public const string GetWork = "eth_getWork";
         public const string SubmitWork = "eth_submitWork";

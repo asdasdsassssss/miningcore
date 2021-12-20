@@ -25,7 +25,7 @@ namespace Miningcore.Blockchain.Ethereum
             // convert chain
             if(!Enum.TryParse(gethChainResponse, true, out chainType))
             {
-               chainType = GethChainType.Unknown;
+                chainType = GethChainType.Unknown;
             }
 
             if(chainType == GethChainType.Ethereum)
@@ -36,8 +36,13 @@ namespace Miningcore.Blockchain.Ethereum
 
             if(chainType == GethChainType.Expanse)
                 chainType = GethChainType.Expanse;
+			
+            if(chainType == GethChainType.Classic)
+                chainType = GethChainType.Classic;
+
 
         }
+		
         public static string GetTargetHex(double difficulty)
         {
             var diff = new BigInteger(difficulty * EthereumConstants.Pow2x32);
@@ -45,5 +50,6 @@ namespace Miningcore.Blockchain.Ethereum
             var hex = target.ToByteArray(true, true).ToHex();
             return $"0x{string.Concat(Enumerable.Repeat("0", 64 - hex.Length))}{hex}";
         }
+		
     }
 }

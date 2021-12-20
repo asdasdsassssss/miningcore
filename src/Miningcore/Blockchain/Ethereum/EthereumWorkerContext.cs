@@ -14,6 +14,10 @@ public class EthereumWorkerContext : WorkerContextBase
     /// </summary>
     public string Worker { get; set; }
 
+    public string Scheme { get; set; }
+
+    public decimal ReportHashrate { get; set; }
+	
     public bool IsInitialWorkSent { get; set; } = false;
 
     /// <summary>

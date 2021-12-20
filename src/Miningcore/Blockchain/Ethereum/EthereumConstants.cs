@@ -7,6 +7,7 @@ namespace Miningcore.Blockchain.Ethereum
     public class EthereumConstants
     {
         public const ulong EpochLength = 30000;
+		public const ulong EtcEpochLength = 60000;
         public const ulong CacheSizeForTesting = 1024;
         public const ulong DagSizeForTesting = 1024 * 32;
         public static BigInteger BigMaxValue = BigInteger.Pow(2, 256);
@@ -20,9 +21,9 @@ namespace Miningcore.Blockchain.Ethereum
         public const string BlockTypeUncle = "uncle";
 
 #if !DEBUG
-        public const int MinPayoutPeerCount = 1;
+        public const int MinPayoutPeerCount = 5;
 #else
-        public const int MinPayoutPeerCount = 1;
+        public const int MinPayoutPeerCount = 5;
 #endif
 
         public static readonly Regex ValidAddressPattern = new("^0x[0-9a-fA-F]{40}$", RegexOptions.Compiled);
@@ -36,8 +37,9 @@ namespace Miningcore.Blockchain.Ethereum
         public const decimal HomesteadBlockReward = 5.0m;
         public const decimal ByzantiumBlockReward = 3.0m;
         public const decimal ConstantinopleReward = 2.0m;
-
-        public const int MinConfimations = 16;
+        public const decimal ExpanseReward = 4.0m;
+		
+        public const int MinConfimations = 120;
     }
 
     // Callisto Monetary Policy
@@ -47,16 +49,18 @@ namespace Miningcore.Blockchain.Ethereum
         public const decimal BaseRewardInitial = 77.76m;
         public const decimal TreasuryPercent = 50m;
     }
-    // Expanse Monetary Policy
-    public class ExpanseConstants
+    public class EthereumClassicConstants
     {
-        public const decimal BaseRewardInitial = 4.0m;
+        public const decimal BaseRewardInitial = 5;
+        public const decimal BasePercent = 0.8m;
+        public const int BlockPerEra = 5000000;
+        public const decimal UnclePercent = 0.03125m;
     }
 
     public enum EthereumNetworkType
     {
         Mainnet = 1,
-        Morden = 2,
+        Expanse = 2,
         Ropsten = 3,
         Rinkeby = 4,
         Goerli = 5,
@@ -73,7 +77,8 @@ namespace Miningcore.Blockchain.Ethereum
         Ropsten,
         Callisto,
         Expanse,
-		
+        Classic,
+
         Unknown = -1,
     }
 
@@ -95,6 +100,7 @@ namespace Miningcore.Blockchain.Ethereum
         public const string GetTxReceipt = "eth_getTransactionReceipt";
         public const string SendTx = "eth_sendTransaction";
         public const string UnlockAccount = "personal_unlockAccount";
+		public const string GasPrice = "eth_gasPrice";
         public const string Subscribe = "eth_subscribe";
         public const string MaxPriorityFeePerGas = "eth_maxPriorityFeePerGas";
     }
