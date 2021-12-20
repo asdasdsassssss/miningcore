@@ -60,7 +60,9 @@ public class EthereumJob
 
         // assemble full-nonce
         var context = worker.ContextAs<EthereumWorkerContext>();
-        var fullNonceHex = context.ExtraNonce1 + nonce;
+        var fullNonceHex = nonce.StartsWith("0x") ? nonce[2..] : nonce;
+        if(context.IsNiceHashClient && !string.IsNullOrEmpty(context.ExtraNonce1))
+            fullNonceHex = context.ExtraNonce1 + fullNonceHex;
 
         if(!ulong.TryParse(fullNonceHex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var fullNonce))
             throw new StratumException(StratumError.MinusOne, "bad nonce " + fullNonceHex);
