@@ -20,4 +20,6 @@ public class EthereumWorkerContext : WorkerContextBase
     /// Unique value assigned per worker
     /// </summary>
     public string ExtraNonce1 { get; set; }
+    
+    public bool IsNiceHashClient { get; set; }
 }
