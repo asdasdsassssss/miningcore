@@ -1,13 +1,20 @@
-using System.Globalization;
-using System.Numerics;
 using Miningcore.Crypto.Hashing.Ethash;
+//using Miningcore.Crypto.Hashing.Etchash;
 using Miningcore.Extensions;
 using Miningcore.Stratum;
 using NBitcoin;
+using Newtonsoft.Json;
 using NLog;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Numerics;
+using System.Reactive.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Miningcore.Blockchain.Ethereum;
-
+{
 public class EthereumJob
 {
     public EthereumJob(string id, EthereumBlockTemplate blockTemplate, ILogger logger)
@@ -18,7 +25,7 @@ public class EthereumJob
 
         var target = blockTemplate.Target;
         if(target.StartsWith("0x"))
-            target = target.Substring(2);
+            target = target[2..];
 
         blockTarget = new uint256(target.HexToReverseByteArray());
     }
@@ -108,9 +115,12 @@ public class EthereumJob
             IpAddress = worker.RemoteEndpoint?.Address?.ToString(),
             Miner = context.Miner,
             Worker = context.Worker,
+			Scheme = context.Scheme,
             UserAgent = context.UserAgent,
             IsBlockCandidate = isBlockCandidate,
-            Difficulty = stratumDifficulty * EthereumConstants.Pow2x32
+            Difficulty = stratumDifficulty * EthereumConstants.Pow2x32,
+			ReportHashrate = context.ReportHashrate,
+            ActualDifficulty = shareDiff * EthereumConstants.Pow2x32,
         };
 
         if(share.IsBlockCandidate)
@@ -126,4 +136,5 @@ public class EthereumJob
 
         return (share, null, null, null);
     }
+}
 }
