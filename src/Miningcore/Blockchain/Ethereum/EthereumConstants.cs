@@ -7,7 +7,7 @@ namespace Miningcore.Blockchain.Ethereum
     public class EthereumConstants
     {
         public const ulong EpochLength = 30000;
-		public const ulong EtcEpochLength = 60000;
+        public const ulong EtcEpochLength = 60000;
         public const ulong CacheSizeForTesting = 1024;
         public const ulong DagSizeForTesting = 1024 * 32;
         public static BigInteger BigMaxValue = BigInteger.Pow(2, 256);
@@ -38,7 +38,7 @@ namespace Miningcore.Blockchain.Ethereum
         public const decimal ByzantiumBlockReward = 3.0m;
         public const decimal ConstantinopleReward = 2.0m;
         public const decimal ExpanseReward = 4.0m;
-		
+
         public const int MinConfimations = 120;
     }
 
@@ -60,14 +60,10 @@ namespace Miningcore.Blockchain.Ethereum
     public enum EthereumNetworkType
     {
         Mainnet = 1,
-        Expanse = 2,
         Ropsten = 3,
-        Rinkeby = 4,
-        Goerli = 5,
-        Kovan = 42,
         Callisto = 820,
-		Galilei = 7919,
-		
+        Expanse = 2,
+
         Unknown = -1,
     }
 
@@ -100,8 +96,9 @@ namespace Miningcore.Blockchain.Ethereum
         public const string GetTxReceipt = "eth_getTransactionReceipt";
         public const string SendTx = "eth_sendTransaction";
         public const string UnlockAccount = "personal_unlockAccount";
-		public const string GasPrice = "eth_gasPrice";
         public const string Subscribe = "eth_subscribe";
+        public const string GasPrice = "eth_gasPrice";
         public const string MaxPriorityFeePerGas = "eth_maxPriorityFeePerGas";
+
     }
 }

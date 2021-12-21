@@ -1,11 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Globalization;
-using System.Linq;
 using System.Numerics;
-using System.Threading;
-using System.Threading.Tasks;
 using Autofac;
 using AutoMapper;
 using Miningcore.Blockchain.Ethereum.Configuration;
@@ -261,30 +255,11 @@ public class EthereumPayoutHandler : PayoutHandlerBase,
         }
 
         var txHashes = new List<string>();
-		
-		var gasprice = await rpcClient.ExecuteAsync<string>(logger, EC.GasPrice, ct);
-            if(gasprice.Error != null)
-                throw new Exception($"GasPrice returned error: {gasprice.Error.Message} code {gasprice.Error.Code}");
-
-            var gasPrice = BigInteger.Parse(gasprice.Response.StripHexPrefix(), NumberStyles.AllowHexSpecifier);
-            var txFee = (decimal) gasPrice * extraConfig.Gas / EthereumConstants.Wei;
-            if(extraConfig?.MinerTxFee == false)
-                txFee = 0;
 
         foreach(var balance in balances)
         {
             try
             {
-				var payment = new Balance
-                    {
-                        PoolId = balance.PoolId,
-                        Address = balance.Address,
-                        Amount = balance.Amount,
-                        TxFee = txFee,
-                        Created = balance.Created,
-                        Updated = balance.Updated
-                    };
-				
                 var txHash = await PayoutAsync(balance, ct);
                 txHashes.Add(txHash);
             }
@@ -346,16 +321,7 @@ public class EthereumPayoutHandler : PayoutHandlerBase,
 
             case GethChainType.Callisto:
                 return CallistoConstants.BaseRewardInitial * (CallistoConstants.TreasuryPercent / 100);
-                
-                case GethChainType.Expanse:
-                    return EthereumConstants.ExpanseReward;
-                
-				case GethChainType.Classic:
-                    {
-                        var era = Math.Floor(((double) height + 1) / EthereumClassicConstants.BlockPerEra);
-                        return (decimal) Math.Pow((double) EthereumClassicConstants.BasePercent, era) * EthereumClassicConstants.BaseRewardInitial;
-                    }
-					
+
             default:
                 throw new Exception("Unable to determine block reward: Unsupported chain type");
         }
@@ -386,19 +352,9 @@ public class EthereumPayoutHandler : PayoutHandlerBase,
     {
         var reward = GetBaseBlockReward(chainType, height);
 
-        switch(chainType)
-        {
-            case GethChainType.Classic:
-                reward *= EthereumClassicConstants.UnclePercent;
-                break;
+        reward *= uheight + 8 - height;
+        reward /= 8m;
 
-                default:
-                    // https://ethereum.stackexchange.com/a/27195/18000
-                    reward *= uheight + 8 - height;
-                    reward /= 8m;
-                break;
-            }
-			
         return reward;
     }
 
@@ -430,8 +386,8 @@ public class EthereumPayoutHandler : PayoutHandlerBase,
     private async Task<string> PayoutAsync(Balance balance, CancellationToken ct)
     {
         // send transaction
-        logger.Info(() => $"[{LogCategory}] Sending {FormatAmount(balance.Amount - balance.TxFee)} to {balance.Address}");
-			
+        logger.Info(() => $"[{LogCategory}] Sending {FormatAmount(balance.Amount)} to {balance.Address}");
+
         var amount = (BigInteger) Math.Floor(balance.Amount * EthereumConstants.Wei);
 
         var request = new SendTransactionRequest
@@ -458,7 +414,7 @@ public class EthereumPayoutHandler : PayoutHandlerBase,
             throw new Exception($"{EC.SendTx} did not return a valid transaction hash");
 
         var txHash = response.Response;
-            logger.Info(() => $"[{LogCategory}] Payment transaction id: {txHash} TxFee: {balance.TxFee}");
+        logger.Info(() => $"[{LogCategory}] Payment transaction id: {txHash}");
 
         // update db
         await PersistPaymentsAsync(new[] { balance }, txHash);
